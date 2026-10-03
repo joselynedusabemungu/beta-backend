@@ -10,11 +10,10 @@ class UserRegisterInput(BaseModel):
     password: str
 
 
-
-
-
 class UserResponse(BaseModel):
     user_id: int
+    first_name: str
+    last_name: str
     email: str
     username: Optional[str] = None
     user_type: str

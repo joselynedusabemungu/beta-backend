@@ -66,8 +66,49 @@ def update_registration(
         return None
 
     update_data = registration.model_dump(exclude_unset=True)
-    allowed = {"first_name", "last_name", "username", "email", "preferred_language", "country", "is_active", "user_type"}
-    update_data = {k:v for k,v in update_data.items() if k in allowed}
+    allowed = {
+        "first_name",
+        "last_name",
+        "username",
+        "email",
+        "preferred_language",
+        "country",
+        "is_active",
+        "user_type",
+    }
+    update_data = {
+        key: value
+        for key, value in update_data.items()
+        if key in allowed
+    }
+
+    if "email" in update_data:
+        normalized_email = str(update_data["email"]).strip().lower()
+        existing_email = (
+            db.query(Registration)
+            .filter(
+                Registration.email == normalized_email,
+                Registration.user_id != user_id,
+            )
+            .first()
+        )
+        if existing_email:
+            raise ValueError("Email already registered")
+        update_data["email"] = normalized_email
+
+    if "username" in update_data:
+        normalized_username = str(update_data["username"]).strip().lower()
+        existing_username = (
+            db.query(Registration)
+            .filter(
+                Registration.username == normalized_username,
+                Registration.user_id != user_id,
+            )
+            .first()
+        )
+        if existing_username:
+            raise ValueError("Username already registered")
+        update_data["username"] = normalized_username
 
     for key, value in update_data.items():
         setattr(user, key, value)

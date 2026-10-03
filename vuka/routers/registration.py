@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends,HTTPException,Request
+from fastapi import APIRouter,Depends,HTTPException,Request,status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,8 @@ from vuka.schemas.mfa import MfaVerifyRequest,MfaSetupResponse,MfaChallengeReque
 from vuka.services.auth import AuthService
 from vuka.repositories.auth import AuthRepository
 from vuka.services import registration as registration_service
+from vuka.services.settings import change_user_password
+from vuka.schemas.settings import ChangePasswordRequest
 from vuka.security.audit import record_event
 
 router=APIRouter(tags=["Registration"])
@@ -76,8 +78,34 @@ def get_me(current_user:Registration=Depends(get_current_user)):
     return current_user
 
 @router.patch("/me",response_model=RegistrationResponse)
-def update_me(payload:RegistrationSelfUpdate,current_user:Registration=Depends(get_current_user),db:Session=Depends(get_db)):
-    return registration_service.update_registration(db,current_user.user_id,payload)
+def update_me(
+    payload: RegistrationSelfUpdate,
+    current_user: Registration = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        return registration_service.update_registration(
+            db,
+            current_user.user_id,
+            payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: Registration = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    change_user_password(
+        db=db,
+        user=current_user,
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+    )
+    return None
 
 @router.delete("/me")
 def delete_me(current_user:Registration=Depends(get_current_user),db:Session=Depends(get_db)):
